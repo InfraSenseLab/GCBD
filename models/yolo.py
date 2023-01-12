@@ -106,6 +106,21 @@ class Segment(Detect):
         return (x, p) if self.training else (x[0], p) if self.export else (x[0], p, x[1])
 
 
+class PatchClassify(Detect):
+    def __init__(self, nc=80, anchors=(), nc_grid=32, ch=(), inplace=True):
+        super().__init__(nc, anchors, ch, inplace)
+        self.nc_grid = nc_grid
+        self.no = 5 + nc
+        self.m = nn.ModuleList(nn.Conv2d(x, self.no * self.na, 1) for x in ch[:-1])  # output conv
+        self.pc = Conv(ch[-1], nc_grid)
+        self.detect = Detect.forward
+
+    def forward(self, x):
+        pc = self.pc(x[-1])
+        x = self.detect(self, x[:-1])
+        return (x, pc) if self.training else (x[0], pc.sigmoid()) if self.export else (x[0], x[1], pc, pc.sigmoid())
+
+
 class BaseModel(nn.Module):
     # YOLOv5 base model
     def forward(self, x, profile=False, visualize=False):
@@ -154,7 +169,7 @@ class BaseModel(nn.Module):
         # Apply to(), cpu(), cuda(), half() to model tensors that are not parameters or registered buffers
         self = super()._apply(fn)
         m = self.model[-1]  # Detect()
-        if isinstance(m, (Detect, Segment)):
+        if isinstance(m, (Detect, Segment, PatchClassify)):
             m.stride = fn(m.stride)
             m.grid = list(map(fn, m.grid))
             if isinstance(m.anchor_grid, list):
@@ -188,10 +203,10 @@ class DetectionModel(BaseModel):
 
         # Build strides, anchors
         m = self.model[-1]  # Detect()
-        if isinstance(m, (Detect, Segment)):
+        if isinstance(m, (Detect, Segment, PatchClassify)):
             s = 256  # 2x min stride
             m.inplace = self.inplace
-            forward = lambda x: self.forward(x)[0] if isinstance(m, Segment) else self.forward(x)
+            forward = lambda x: self.forward(x)[0] if isinstance(m, (Segment, PatchClassify)) else self.forward(x)
             m.stride = torch.tensor([s / x.shape[-2] for x in forward(torch.zeros(1, ch, s, s))])  # forward
             check_anchor_order(m)
             m.anchors /= m.stride.view(-1, 1, 1)
@@ -270,6 +285,11 @@ class SegmentationModel(DetectionModel):
         super().__init__(cfg, ch, nc, anchors)
 
 
+class PatchClassifyModel(DetectionModel):
+    def __init__(self, cfg='patch_classify/yolov5s-pc.yaml', ch=3, nc=None, anchors=None):
+        super().__init__(cfg, ch, nc, anchors)
+
+
 class ClassificationModel(BaseModel):
     # YOLOv5 classification model
     def __init__(self, cfg=None, model=None, nc=1000, cutoff=10):  # yaml, model, number of classes, cutoff index
@@ -300,6 +320,7 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
     # Parse a YOLOv5 model.yaml dictionary
     LOGGER.info(f"\n{'':>3}{'from':>18}{'n':>3}{'params':>10}  {'module':<40}{'arguments':<30}")
     anchors, nc, gd, gw, act = d['anchors'], d['nc'], d['depth_multiple'], d['width_multiple'], d.get('activation')
+    nc_grid = d.get('nc_grid', 0)
     if act:
         Conv.default_act = eval(act)  # redefine default activation, i.e. Conv.default_act = nn.SiLU()
         LOGGER.info(f"{colorstr('activation:')} {act}")  # print
@@ -330,7 +351,7 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
         elif m is Concat:
             c2 = sum(ch[x] for x in f)
         # TODO: channel, gw, gd
-        elif m in {Detect, Segment}:
+        elif m in {Detect, Segment, PatchClassify}:
             args.append([ch[x] for x in f])
             if isinstance(args[1], int):  # number of anchors
                 args[1] = [list(range(args[1] * 2))] * len(f)
@@ -358,7 +379,7 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--cfg', type=str, default='yolov5s.yaml', help='model.yaml')
+    parser.add_argument('--cfg', type=str, default='patch_classify/yolov5s-pc.yaml', help='model.yaml')
     parser.add_argument('--batch-size', type=int, default=1, help='total batch size for all GPUs')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--profile', action='store_true', help='profile model speed')
@@ -371,7 +392,7 @@ if __name__ == '__main__':
 
     # Create model
     im = torch.rand(opt.batch_size, 3, 640, 640).to(device)
-    model = Model(opt.cfg).to(device)
+    model = PatchClassifyModel(opt.cfg).to(device)
 
     # Options
     if opt.line_profile:  # profile layer by layer
