@@ -118,7 +118,7 @@ class PatchClassify(Detect):
     def forward(self, x):
         pc = self.pc(x[-1])
         x = self.detect(self, x[:-1])
-        return (x, pc) if self.training else (x[0], pc.sigmoid()) if self.export else (x[0], x[1], pc, pc.sigmoid())
+        return (x, pc) if self.training else (x[0], pc.sigmoid()) if self.export else (x[0], x[1], pc.sigmoid(), pc)
 
 
 class BaseModel(nn.Module):
