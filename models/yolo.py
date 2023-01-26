@@ -393,6 +393,10 @@ if __name__ == '__main__':
     # Create model
     im = torch.rand(opt.batch_size, 3, 640, 640).to(device)
     model = PatchClassifyModel(opt.cfg).to(device)
+    box, grid = model(im)
+    for i in box:
+        print(i.shape)
+    print(grid.shape)
 
     # Options
     if opt.line_profile:  # profile layer by layer

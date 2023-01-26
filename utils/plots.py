@@ -226,7 +226,7 @@ def output_to_target(output, max_det=300):
 
 
 @threaded
-def plot_images(images, targets, paths=None, fname='images.jpg', names=None):
+def plot_images(images, targets, paths=None, fname='images.jpg', names=None, caption=True):
     # Plot image grid with labels
     if isinstance(images, torch.Tensor):
         images = images.cpu().float().numpy()
@@ -285,7 +285,7 @@ def plot_images(images, targets, paths=None, fname='images.jpg', names=None):
                 color = colors(cls)
                 cls = names[cls] if names else cls
                 if labels or conf[j] > 0.25:  # 0.25 conf thresh
-                    label = f'{cls}' if labels else f'{cls} {conf[j]:.1f}'
+                    label = f'{cls}' if labels else f'{cls} {conf[j]:.1f}' if caption else ''
                     annotator.box_label(box, label, color=color)
     annotator.im.save(fname)  # save
 
@@ -509,6 +509,31 @@ def plot_results(file='path/to/results.csv', dir=''):
     fig.savefig(save_dir / 'results.png', dpi=200)
     plt.close()
 
+
+def plot_results_pc(file='path/to/results.csv', dir=''):
+    # Plot training results.csv. Usage: from utils.plots import *; plot_results('path/to/results.csv')
+    save_dir = Path(file).parent if file else Path(dir)
+    fig, ax = plt.subplots(2, 5, figsize=(12, 6), tight_layout=True)
+    ax = ax.ravel()
+    files = list(save_dir.glob('results*.csv'))
+    assert len(files), f'No results.csv files found in {save_dir.resolve()}, nothing to plot.'
+    for f in files:
+        try:
+            data = pd.read_csv(f)
+            s = [x.strip() for x in data.columns]
+            x = data.values[:, 0]
+            for i, j in enumerate([1, 2, 3, 4, 7, 12, 13, 14, 15, 11]):
+                y = data.values[:, j].astype('float')
+                # y[y == 0] = np.nan  # don't show zero values
+                ax[i].plot(x, y, marker='.', label=f.stem, linewidth=2, markersize=8)
+                ax[i].set_title(s[j], fontsize=12)
+                # if j in [8, 9, 10]:  # share train and val loss y axes
+                #     ax[i].get_shared_y_axes().join(ax[i], ax[i - 5])
+        except Exception as e:
+            LOGGER.info(f'Warning: Plotting error for {f}: {e}')
+    ax[1].legend()
+    fig.savefig(save_dir / 'results.png', dpi=200)
+    plt.close()
 
 def profile_idetection(start=0, stop=0, labels=(), save_dir=''):
     # Plot iDetection '*.txt' per-image logs. from utils.plots import *; profile_idetection()

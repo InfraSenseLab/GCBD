@@ -14,7 +14,7 @@ from torch.utils.tensorboard import SummaryWriter
 from utils.general import LOGGER, colorstr, cv2
 from utils.loggers.clearml.clearml_utils import ClearmlLogger
 from utils.loggers.wandb.wandb_utils import WandbLogger
-from utils.plots import plot_images, plot_labels, plot_results
+from utils.plots import plot_images, plot_labels, plot_results,plot_results_pc
 from utils.torch_utils import de_parallel
 
 LOGGERS = ('csv', 'tb', 'wandb', 'clearml', 'comet')  # *.csv, TensorBoard, Weights & Biases, ClearML
@@ -314,6 +314,60 @@ class Loggers():
         if self.comet_logger:
             self.comet_logger.on_params_update(params)
 
+
+class PatchLogger(Loggers):
+    def __init__(self, save_dir=None, weights=None, opt=None, hyp=None, logger=None, include=LOGGERS):
+        super(PatchLogger, self).__init__(save_dir=save_dir, weights=weights, opt=opt, hyp=hyp, logger=logger, include=include)
+        self.keys = [
+            'train/box_loss',
+            'train/obj_loss',
+            'train/cls_loss',
+            'train/grid_loss',  # train loss
+            'metrics/precision',
+            'metrics/recall',
+            'metrics/mAP_0.5',
+            'metrics/mAP_0.5:0.95',  # metrics
+            'metrics/precision_grid',
+            'metrics/recall_grid',
+            'metrics/mAP_0.5_grid',
+            'val/box_loss',
+            'val/obj_loss',
+            'val/cls_loss',
+            'val/grid_loss',  # val loss
+            'x/lr0',
+            'x/lr1',
+            'x/lr2']  # params
+    def on_train_end(self, last, best, epoch, results):
+        # Callback runs on training end, i.e. saving best model
+        if self.plots:
+            plot_results_pc(file=self.save_dir / 'results.csv')  # save results.png
+        files = ['results.png', 'confusion_matrix.png', *(f'{x}_curve.png' for x in ('F1', 'PR', 'P', 'R'))]
+        files = [(self.save_dir / f) for f in files if (self.save_dir / f).exists()]  # filter
+        self.logger.info(f"Results saved to {colorstr('bold', self.save_dir)}")
+
+        if self.tb and not self.clearml:  # These images are already captured by ClearML by now, we don't want doubles
+            for f in files:
+                self.tb.add_image(f.stem, cv2.imread(str(f))[..., ::-1], epoch, dataformats='HWC')
+
+        if self.wandb:
+            self.wandb.log(dict(zip(self.keys[3:10], results)))
+            self.wandb.log({"Results": [wandb.Image(str(f), caption=f.name) for f in files]})
+            # Calling wandb.log. TODO: Refactor this into WandbLogger.log_model
+            if not self.opt.evolve:
+                wandb.log_artifact(str(best if best.exists() else last),
+                                   type='model',
+                                   name=f'run_{self.wandb.wandb_run.id}_model',
+                                   aliases=['latest', 'best', 'stripped'])
+            self.wandb.finish_run()
+
+        if self.clearml and not self.opt.evolve:
+            self.clearml.task.update_output_model(model_path=str(best if best.exists() else last),
+                                                  name='Best Model',
+                                                  auto_delete_file=False)
+
+        if self.comet_logger:
+            final_results = dict(zip(self.keys[3:10], results))
+            self.comet_logger.on_train_end(files, self.save_dir, last, best, epoch, final_results)
 
 class GenericLogger:
     """
