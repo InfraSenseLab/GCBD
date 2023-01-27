@@ -78,7 +78,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='.', names
 
     # Compute F1 (harmonic mean of precision and recall)
     f1 = 2 * p * r / (p + r + eps)
-    names = [v for k, v in names.items() if k in unique_classes]  # list: only classes that have data
+    names = [names[k] for k in unique_classes]  # list: only classes that have data
     names = dict(enumerate(names))  # to dict
     if plot:
         plot_pr_curve(px, py, ap, Path(save_dir) / f'{prefix}PR_curve.png', names)

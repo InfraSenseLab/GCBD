@@ -26,7 +26,7 @@ hsv_s: 0.7  # image HSV-Saturation augmentation (fraction)
 hsv_v: 0.4  # image HSV-Value augmentation (fraction)
 degrees: 0.0  # image rotation (+/- deg) must be 0
 translate: 0.1  # image translation (+/- fraction)
-scale: 0.0  # image scale (+/- gain) must be 0
+scale: 0.9  # image scale (+/- gain) must be 0
 shear: 0.0  # image shear (+/- deg) must be 0
 perspective: 0.0  # image perspective (+/- fraction), range 0-0.001 must be 0
 flipud: 0.5  # image flip up-down (probability)
