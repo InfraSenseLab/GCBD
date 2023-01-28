@@ -30,7 +30,7 @@ import torch
 from tqdm import tqdm
 
 FILE = Path(__file__).resolve()
-ROOT = FILE.parents[0]  # YOLOv5 root directory
+ROOT = FILE.parents[1]  # YOLOv5 root directory
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
@@ -154,7 +154,7 @@ def run(
         device, pt, jit, engine = next(model.parameters()).device, True, False, False  # get model device, PyTorch model
         half &= device.type != 'cpu'  # half precision only supported on CUDA
         model.half() if half else model.float()
-        stride = model.stride
+        stride = model.stride[-1]
     else:  # called directly
         device = select_device(device, batch_size=batch_size)
 
@@ -232,8 +232,7 @@ def run(
 
         # Inference
         with dt[1]:
-            preds, train_out, preds_grid, train_out_pred = model(im) if compute_loss else (
-            model(im, augment=augment), None)
+            preds, train_out, preds_grid, train_out_pred = model(im)
         # Loss
         if compute_loss:
             loss += compute_loss((train_out, train_out_pred), targets)[1]  # box, obj, cls
@@ -306,7 +305,7 @@ def run(
             plot_images(im, output_to_target(preds), paths, save_dir / f'val_batch{batch_i}_pred.jpg', names)  # pred
             plot_images(im, targets_grid, paths, save_dir / f'val_batch{batch_i}_labels_grid.jpg',
                         caption=False)  # grid_labels
-            plot_images(im, output_to_target(grid2box(preds_grid, 0.5, stride[-1]), 400), paths,
+            plot_images(im, output_to_target(grid2box(preds_grid, 0.5, stride), 400), paths,
                         save_dir / f'val_batch{batch_i}_pred_grid.jpg', caption=False)
         callbacks.run('on_val_batch_end', batch_i, im, targets, paths, shapes, preds)
 
@@ -417,7 +416,7 @@ def parse_opt():
     parser.add_argument('--save-hybrid', action='store_true', help='save label+prediction hybrid results to *.txt')
     parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels')
     parser.add_argument('--save-json', action='store_true', help='save a COCO-JSON results file')
-    parser.add_argument('--project', default=ROOT / 'runs/val', help='save to project/name')
+    parser.add_argument('--project', default=ROOT / 'runs_pc/val', help='save to project/name')
     parser.add_argument('--name', default='exp', help='save to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--half', action='store_true', help='use FP16 half-precision inference')

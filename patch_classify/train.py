@@ -222,7 +222,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                                        rect=True,
                                        rank=-1,
                                        workers=workers * 2,
-                                       pad=0,
+                                       pad=1.5,
                                        prefix=colorstr('val: '))[0]
 
         if not resume:
