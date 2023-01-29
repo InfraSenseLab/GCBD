@@ -17,6 +17,7 @@ obj: 0.7  # obj loss gain (scale with pixels)
 obj_pw: 1.0  # obj BCELoss positive_weight
 grid: 0.3  # grid loss gain
 grid_pw: 1.0  # grid BCELoss positive_weight
+grid_delta: 0.125
 iou_t: 0.20  # IoU training threshold
 anchor_t: 4.0  # anchor-multiple threshold
 # anchors: 3  # anchors per output layer (0 to ignore)
