@@ -92,7 +92,7 @@ class ComputeLoss:
     sort_obj_iou = False
 
     # Compute losses
-    def __init__(self, model, autobalance=False):
+    def __init__(self, model, autobalance=False, grid_delta=0.25):
         device = next(model.parameters()).device  # get model device
         h = model.hyp  # hyperparameters
 
@@ -119,6 +119,7 @@ class ComputeLoss:
         self.nl = m.nl  # number of layers
         self.anchors = m.anchors
         self.device = device
+        self.grid_delta = grid_delta
 
     def __call__(self, p, targets):  # predictions, targets
         p, p_grid, targets, targets_grid = p[0], p[1], targets[targets[:, 1] >= 0], targets[targets[:, 1] < 0]
@@ -187,9 +188,10 @@ class ComputeLoss:
         grid = torch.full_like(p_grid, self.cn, device=self.device)
         b = (box[:, 0]).long()
         c = (-box[:, 1] - 1).long()
-        h = (box[:, 3] * H).long()
-        w = (box[:, 2] * W).long()
-        grid[b, c, h, w] = self.cp
+        for dh, dw in [(-1, -1), (-1, 1), (1, 1), (1, -1)]:
+            y = ((box[:, 3] + dh * self.grid_delta * box[:, 5]) * H).long()
+            x = ((box[:, 2] + dw * self.grid_delta * box[:, 4]) * W).long()
+            grid[b, c, y, x] = self.cp
         return grid
 
     def build_targets(self, p, targets):
