@@ -188,7 +188,8 @@ class ComputeLoss:
         grid = torch.full_like(p_grid, self.cn, device=self.device)
         b = (box[:, 0]).long()
         c = (-box[:, 1] - 1).long()
-        for dh, dw in [(-1, -1), (-1, 1), (1, 1), (1, -1)]:
+        for dh, dw in [(-1, -1), (-1, 1), (1, 1), (1, -1), (0, 0), (0, -1), (0, 1), (-1, 0), (1, 0)]:
+        # for dh, dw in [(-1, -1), (-1, 1), (1, 1), (1, -1)]:
             y = ((box[:, 3] + dh * self.grid_delta * box[:, 5]) * H).long()
             x = ((box[:, 2] + dw * self.grid_delta * box[:, 4]) * W).long()
             grid[b, c, y, x] = self.cp
