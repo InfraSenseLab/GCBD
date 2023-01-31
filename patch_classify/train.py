@@ -278,7 +278,27 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         # Update mosaic border (optional)
         # b = int(random.uniform(0.25 * imgsz, 0.75 * imgsz + gs) // gs * gs)
         # dataset.mosaic_border = [b - imgsz, -b]  # height, width borders
-
+        if epochs - epoch == 50:
+            hyp['mosaic'] = 0.0
+            hyp['mixup'] = 0.0
+            hyp['scale'] = 0.0
+            hyp['translate'] = 0.0
+            train_loader, _ = create_dataloader(train_path,
+                                                imgsz,
+                                                batch_size // WORLD_SIZE,
+                                                gs,
+                                                single_cls,
+                                                hyp=hyp,
+                                                augment=True,
+                                                cache=None if opt.cache == 'val' else opt.cache,
+                                                rect=opt.rect,
+                                                rank=LOCAL_RANK,
+                                                workers=workers,
+                                                image_weights=opt.image_weights,
+                                                quad=opt.quad,
+                                                prefix=colorstr('train: '),
+                                                shuffle=True,
+                                                seed=opt.seed)
         mloss = torch.zeros(4, device=device)  # mean losses
         if RANK != -1:
             train_loader.sampler.set_epoch(epoch)
@@ -431,7 +451,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                         verbose=True,
                         plots=plots,
                         callbacks=callbacks,
-                        compute_loss=compute_loss)  # val best model with plots
+                        compute_loss=compute_loss,
+                        half=False)  # val best model with plotsS
                     if is_coco:
                         callbacks.run('on_fit_epoch_end', list(mloss) + list(results) + lr, epoch, best_fitness, fi)
 

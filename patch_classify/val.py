@@ -38,9 +38,11 @@ ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 from models.common import DetectMultiBackend
 from utils.callbacks import Callbacks
 from utils.patch_classify.dataloaders import create_dataloader
-from utils.patch_classify.general import (LOGGER, TQDM_BAR_FORMAT, Profile, check_dataset, check_img_size, check_requirements,
-                           check_yaml, coco80_to_coco91_class, colorstr, increment_path, non_max_suppression,
-                           print_args, scale_boxes, xywh2xyxy, xyxy2xywh)
+from utils.patch_classify.general import (LOGGER, TQDM_BAR_FORMAT, Profile, check_dataset, check_img_size,
+                                          check_requirements,
+                                          check_yaml, coco80_to_coco91_class, colorstr, increment_path,
+                                          non_max_suppression,
+                                          print_args, scale_boxes, xywh2xyxy, xyxy2xywh)
 from utils.patch_classify.metrics import ConfusionMatrix, ap_per_class, box_iou
 from utils.plots import output_to_target, plot_images, plot_val_study
 from utils.torch_utils import select_device, smart_inference_mode
@@ -112,10 +114,11 @@ def grid2box(prediction, threshold, stride):  # [bs,3,gy,gx]-->[bs,nc,6]
         conf, j = x.max(0)
         top, left = (conf > threshold).nonzero(as_tuple=False).T
         # generate boxes
-        x = torch.stack([left, top, left + 1, top + 1, conf[top, left], -j[top, left]-1], dim=1)
+        x = torch.stack([left, top, left + 1, top + 1, conf[top, left], -j[top, left] - 1], dim=1)
         x[:, :4] *= stride
         output[xi] = x
     return output
+
 
 @smart_inference_mode()
 def run(
@@ -212,7 +215,8 @@ def run(
     if isinstance(names, (list, tuple)):  # old format
         names = dict(enumerate(names))
     class_map = coco80_to_coco91_class() if is_coco else list(range(1000))
-    s = ('%11s' * 2 + '%11s' * 6) % ('Type', 'Class', 'Images', 'Instances', 'P', 'R', 'mAP50', 'mAP50-95')
+    s = ('%11s' * 2 + '%11s' * 7) % (
+        'Task', 'Class', 'Images', 'Instances', 'P', 'R', 'mAP50', 'mAP50-95', 'b-thresh')
     tp, fp, p, r, f1, mp, mr, map50, ap50, map = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
     dt = Profile(), Profile(), Profile()  # profiling times
     loss = torch.zeros(4, device=device)
@@ -312,42 +316,44 @@ def run(
     # Compute box metrics
     stats = [torch.cat(x, 0).cpu().numpy() for x in zip(*stats)]  # to numpy
     if len(stats) and stats[0].any():
-        tp, fp, p, r, f1, ap, ap_class = ap_per_class(*stats, plot=plots, save_dir=save_dir, names=names, prefix='box_')
+        tp, fp, p, r, f1, ap, ap_class, best_box_threshold = ap_per_class(*stats, plot=plots, save_dir=save_dir,
+                                                                          names=names, prefix='box_')
         ap50, ap = ap[:, 0], ap.mean(1)  # AP@0.5, AP@0.5:0.95
         mp, mr, map50, map = p.mean(), r.mean(), ap50.mean(), ap.mean()
     nt = np.bincount(stats[3].astype(int), minlength=nc)  # number of targets per class
     box_res = (mp, mr, map50, map)
 
     # Print box results
-    pf = '%11s' * 2 + '%11i' * 2 + '%11.3g' * 4  # print format
-    LOGGER.info(pf % ('box', 'all', seen, nt.sum(), mp, mr, map50, map))
+    pf = '%11s' * 2 + '%11i' * 2 + '%11.3g' * 5 # print format
+    pf_ = '%11s' * 2 + '%11i' * 2 + '%11.3g' * 4  # print format
+    LOGGER.info(pf % ('box', 'all', seen, nt.sum(), mp, mr, map50, map, best_box_threshold))
     if nt.sum() == 0:
         LOGGER.warning(f'WARNING ⚠️ no labels found in {task} set, can not compute metrics without labels')
 
     # Print box results per class
     if (verbose or (nc < 50 and not training)) and nc > 1 and len(stats):
         for i, c in enumerate(ap_class):
-            LOGGER.info(pf % ('box', names[c], seen, nt[c], p[i], r[i], ap50[i], ap[i]))
+            LOGGER.info(pf_ % ('box', names[c], seen, nt[c], p[i], r[i], ap50[i], ap[i]))
 
     # Compute grid metrics
     stats = [torch.cat(x, 0).cpu().numpy() for x in zip(*stats_grid)]  # to numpy
     if len(stats) and stats[0].any():
-        tp, fp, p, r, f1, ap, ap_class = ap_per_class(*stats, plot=plots, save_dir=save_dir, names=names,
-                                                      prefix='grid_')
+        tp, fp, p, r, f1, ap, ap_class, best_grid_threshold = ap_per_class(*stats, plot=plots, save_dir=save_dir,
+                                                                           names=names, prefix='grid_')
         ap50, ap = ap[:, 0], ap.mean(1)  # AP@0.5, AP@0.5:0.95
         mp, mr, map50, map = p.mean(), r.mean(), ap50.mean(), ap.mean()
     nt = np.bincount((-stats[3] - 1).astype(int), minlength=nc_grid)  # number of targets per class
     grid_res = (mp, mr, map50)
 
     # Print grid results
-    LOGGER.info(pf % ('grid', 'all', seen, nt.sum(), mp, mr, map50, map))
+    LOGGER.info(pf % ('grid', 'all', seen, nt.sum(), mp, mr, map50, map, best_grid_threshold))
     if nt.sum() == 0:
         LOGGER.warning(f'WARNING ⚠️ no labels found in {task} set, can not compute metrics without labels')
 
     # Print grid results per class
     if (verbose or (nc < 50 and not training)) and nc > 1 and len(stats):
         for i, c in enumerate(ap_class):
-            LOGGER.info(pf % ('grid', names[c], seen, nt[-c - 1], p[i], r[i], ap50[i], ap[i]))
+            LOGGER.info(pf_ % ('grid', names[c], seen, nt[-c - 1], p[i], r[i], ap50[i], ap[i],))
 
     # Print speeds
     t = tuple(x.t / seen * 1E3 for x in dt)  # speeds per image
