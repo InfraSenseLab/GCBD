@@ -278,7 +278,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         # Update mosaic border (optional)
         # b = int(random.uniform(0.25 * imgsz, 0.75 * imgsz + gs) // gs * gs)
         # dataset.mosaic_border = [b - imgsz, -b]  # height, width borders
-        if epochs - epoch == 50:
+        if epochs - epoch == opt.close_mosaic:
             hyp['mosaic'] = 0.0
             hyp['mixup'] = 0.0
             hyp['scale'] = 0.0
@@ -381,7 +381,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 results, maps, _ = validate.run(data_dict,
                                                 batch_size=batch_size // WORLD_SIZE * 2,
                                                 imgsz=imgsz,
-                                                half=amp,
+                                                half=False,
                                                 model=ema.ema,
                                                 single_cls=single_cls,
                                                 dataloader=val_loader,
@@ -464,11 +464,12 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
 def parse_opt(known=False):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', type=str, default=ROOT / 'yolov5s.pt', help='initial weights path')
+    parser.add_argument('--weights', type=str, default='', help='initial weights path')
     parser.add_argument('--cfg', type=str, default='', help='model.yaml path')
     parser.add_argument('--data', type=str, default=ROOT / 'data/coco128.yaml', help='dataset.yaml path')
     parser.add_argument('--hyp', type=str, default=ROOT / 'data/hyps/hyp.scratch-low.yaml', help='hyperparameters path')
     parser.add_argument('--epochs', type=int, default=100, help='total training epochs')
+    parser.add_argument('--close-mosaic', type=int, default=30, help='close mosaic at last n epochs')
     parser.add_argument('--batch-size', type=int, default=16, help='total batch size for all GPUs, -1 for autobatch')
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=640, help='train, val image size (pixels)')
     parser.add_argument('--rect', action='store_true', help='rectangular training')
