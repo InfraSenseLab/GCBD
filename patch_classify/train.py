@@ -278,27 +278,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         # Update mosaic border (optional)
         # b = int(random.uniform(0.25 * imgsz, 0.75 * imgsz + gs) // gs * gs)
         # dataset.mosaic_border = [b - imgsz, -b]  # height, width borders
-        if epochs - epoch == opt.close_mosaic:
-            hyp['mosaic'] = 0.0
-            hyp['mixup'] = 0.0
-            hyp['scale'] = 0.0
-            hyp['translate'] = 0.0
-            train_loader, _ = create_dataloader(train_path,
-                                                imgsz,
-                                                batch_size // WORLD_SIZE,
-                                                gs,
-                                                single_cls,
-                                                hyp=hyp,
-                                                augment=True,
-                                                cache=None if opt.cache == 'val' else opt.cache,
-                                                rect=opt.rect,
-                                                rank=LOCAL_RANK,
-                                                workers=workers,
-                                                image_weights=opt.image_weights,
-                                                quad=opt.quad,
-                                                prefix=colorstr('train: '),
-                                                shuffle=True,
-                                                seed=opt.seed)
         mloss = torch.zeros(4, device=device)  # mean losses
         if RANK != -1:
             train_loader.sampler.set_epoch(epoch)
@@ -381,7 +360,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 results, maps, _ = validate.run(data_dict,
                                                 batch_size=batch_size // WORLD_SIZE * 2,
                                                 imgsz=imgsz,
-                                                half=False,
+                                                half=amp,
                                                 model=ema.ema,
                                                 single_cls=single_cls,
                                                 dataloader=val_loader,
@@ -451,8 +430,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                         verbose=True,
                         plots=plots,
                         callbacks=callbacks,
-                        compute_loss=compute_loss,
-                        half=False)  # val best model with plotsS
+                        compute_loss=compute_loss,)  # val best model with plotsS
                     if is_coco:
                         callbacks.run('on_fit_epoch_end', list(mloss) + list(results) + lr, epoch, best_fitness, fi)
 
@@ -469,7 +447,6 @@ def parse_opt(known=False):
     parser.add_argument('--data', type=str, default=ROOT / 'data/coco128.yaml', help='dataset.yaml path')
     parser.add_argument('--hyp', type=str, default=ROOT / 'data/hyps/hyp.scratch-low.yaml', help='hyperparameters path')
     parser.add_argument('--epochs', type=int, default=100, help='total training epochs')
-    parser.add_argument('--close-mosaic', type=int, default=30, help='close mosaic at last n epochs')
     parser.add_argument('--batch-size', type=int, default=16, help='total batch size for all GPUs, -1 for autobatch')
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=640, help='train, val image size (pixels)')
     parser.add_argument('--rect', action='store_true', help='rectangular training')

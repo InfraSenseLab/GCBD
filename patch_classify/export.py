@@ -183,12 +183,6 @@ def export_onnx(model, im, file, opset, dynamic, simplify, prefix=colorstr('ONNX
             onnx.save(model_onnx, f)
         except Exception as e:
             LOGGER.info(f'{prefix} simplifier failure: {e}')
-    y1 = model(im)
-    print(y1)
-    import onnxruntime
-    session = onnxruntime.InferenceSession(str(file.with_suffix('.onnx')), None)
-    y2 = session.run(None, {session.get_inputs()[0].name: im.numpy().astype('float32')})
-    print(y2)
     return f, model_onnx
 
 
