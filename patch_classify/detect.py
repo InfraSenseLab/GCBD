@@ -82,7 +82,7 @@ class CrackDetector:
                 self.crack_classes.append(index)
         self.max_w = max_w
         self.num_workers = num_workers
-        self.pad = pad
+        self.pad = int(pad*self.stride)
 
     @smart_inference_mode()
     def run(self, paths, save, view_img=False, save_img=False, save_txt=True):
@@ -125,6 +125,8 @@ class CrackDetector:
             h, w, _ = img0.shape
             new_img = resize(img0, self.infer_size, self.stride)
             new_h, new_w, _ = new_img.shape
+            new_img = cv2.copyMakeBorder(new_img, self.pad, self.pad, self.pad, self.pad,
+                                         cv2.BORDER_CONSTANT, value=(114, 114, 114))  # add border
             new_img = np.ascontiguousarray(new_img.transpose((2, 0, 1))[::-1])
             new_img = torch.from_numpy(new_img).to(self.model.device)
             new_img = new_img.half() if self.model.fp16 else new_img.float()  # uint8 to fp16/32
@@ -139,7 +141,10 @@ class CrackDetector:
         box_pred = self.ras(self.nms(box_pred))
         grid_pred = self.grid2box(grid_pred)
         for d in box_pred:
+            d[:, :4] -= self.pad
             clip_boxes(d, self.new_size)
+        for g in grid_pred:
+            g[:, :4] -= self.pad
         assert len(box_pred) == len(grid_pred)
         # match gird to box
         for i, (d, g, r) in enumerate(zip(box_pred, grid_pred, ratio)):
