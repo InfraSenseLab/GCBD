@@ -684,8 +684,7 @@ class LoadImagesAndLabels(Dataset):
                                                  translate=hyp['translate'],
                                                  scale=hyp['scale'],
                                                  shear=hyp['shear'],
-                                                 perspective=hyp['perspective'],
-                                                 stride=self.stride)
+                                                 perspective=hyp['perspective'])
 
         nl = len(labels)  # number of labels
         if nl:
@@ -752,8 +751,7 @@ class LoadImagesAndLabels(Dataset):
         # YOLOv5 4-mosaic loader. Loads 1 image + 3 random images into a 4-image mosaic
         labels4, segments4 = [], []
         s = self.img_size
-        stride = self.stride
-        yc, xc = (int(random.uniform(-x, 2 * s + x) // stride * stride) for x in self.mosaic_border)  # mosaic center x, y
+        yc, xc = (int(random.uniform(-x, 2 * s + x)) for x in self.mosaic_border)  # mosaic center x, y
         indices = [index] + random.choices(self.indices, k=3)  # 3 additional image indices
         random.shuffle(indices)
         for i, index in enumerate(indices):
@@ -803,8 +801,7 @@ class LoadImagesAndLabels(Dataset):
                                            scale=self.hyp['scale'],
                                            shear=self.hyp['shear'],
                                            perspective=self.hyp['perspective'],
-                                           border=self.mosaic_border,
-                                           stride=self.stride)  # border to remove
+                                           border=self.mosaic_border)  # border to remove
 
         return img4, labels4
 

@@ -218,6 +218,7 @@ def run(
     s = ('%11s' * 2 + '%11s' * 7) % (
         'Task', 'Class', 'Images', 'Instances', 'P', 'R', 'mAP50', 'mAP50-95', 'b-thresh')
     tp, fp, p, r, f1, mp, mr, map50, ap50, map = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+    best_box_threshold, best_grid_threshold = 0.0, 0.0
     dt = Profile(), Profile(), Profile()  # profiling times
     loss = torch.zeros(4, device=device)
     jdict, stats, ap, ap_class = [], [], [], []

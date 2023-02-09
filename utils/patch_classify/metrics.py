@@ -16,7 +16,7 @@ from utils import TryExcept, threaded
 
 def fitness(x):
     # Model fitness as a weighted combination of metrics
-    w = [0, 0, 0.9, 0, 0, 0, 0.1, 0, 0, 0, 0]  # weights for [P, R, mAP@0.5, mAP@0.5:0.95]
+    w = [0, 0, 0.33, 0.33, 0, 0, 0.33, 0, 0, 0, 0]  # weights for [P, R, mAP@0.5, mAP@0.5:0.95]
     return (x * w).sum(1)
 
 

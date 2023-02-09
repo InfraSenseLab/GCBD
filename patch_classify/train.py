@@ -42,6 +42,7 @@ ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 from patch_classify import val as validate  # for end-of-epoch mAP
 from models.experimental import attempt_load
 from models.yolo import PatchClassifyModel
+from models.swin_transformer import SwinTransformer
 from utils.patch_classify.autoanchor import check_anchors
 from utils.autobatch import check_train_batch_size
 from utils.callbacks import Callbacks
@@ -120,18 +121,22 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     is_coco = isinstance(val_path, str) and val_path.endswith('coco/val2017.txt')  # COCO dataset
 
     # Model
-    check_suffix(weights, '.pt')  # check weights
-    pretrained = weights.endswith('.pt')
+    check_suffix(weights, ('.pt', '.pth'))  # check weights
+    pretrained = weights.endswith('.pt') or weights.endswith('.pth')
     if pretrained:
         with torch_distributed_zero_first(LOCAL_RANK):
             weights = attempt_download(weights)  # download if not found locally
         ckpt = torch.load(weights, map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
         model = PatchClassifyModel(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors')).to(
             device)  # create
-        exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
-        csd = ckpt['model'].float().state_dict()  # checkpoint state_dict as FP32
-        csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
-        model.load_state_dict(csd, strict=False)  # load
+        if isinstance(model.model[0], SwinTransformer) and not resume:
+            LOGGER.info(model.model[0].load_state_dict(ckpt,strict=False))
+            csd = ckpt
+        else:
+            exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
+            csd = ckpt['model'].float().state_dict()  # checkpoint state_dict as FP32
+            csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
+            model.load_state_dict(csd, strict=False)  # load
         LOGGER.info(f'Transferred {len(csd)}/{len(model.state_dict())} items from {weights}')  # report
     else:
         model = PatchClassifyModel(cfg, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
@@ -159,6 +164,9 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     nbs = 64  # nominal batch size
     accumulate = max(round(nbs / batch_size), 1)  # accumulate loss before optimizing
     hyp['weight_decay'] *= batch_size * accumulate / nbs  # scale weight_decay
+    if opt.optimizer in ('Adam', 'AdamW'):
+        hyp['lr0'] /= 10
+        hyp['warmup_bias_lr'] /= 10
     optimizer = smart_optimizer(model, opt.optimizer, hyp['lr0'], hyp['momentum'], hyp['weight_decay'])
 
     # Scheduler
@@ -275,9 +283,28 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             iw = labels_to_image_weights(dataset.labels, nc=nc, class_weights=cw)  # image weights
             dataset.indices = random.choices(range(dataset.n), weights=iw, k=dataset.n)  # rand weighted idx
 
-        # Update mosaic border (optional)
-        # b = int(random.uniform(0.25 * imgsz, 0.75 * imgsz + gs) // gs * gs)
-        # dataset.mosaic_border = [b - imgsz, -b]  # height, width borders
+        if epochs - epoch == opt.close_mosaic:
+            del train_loader, dataset
+            hyp['mosaic'] = 0.0
+            hyp['mixup'] = 0.0
+            hyp['scale'] = 0.0
+            hyp['translate'] = 0.0
+            train_loader, dataset = create_dataloader(train_path,
+                                                      imgsz,
+                                                      batch_size // WORLD_SIZE,
+                                                      gs,
+                                                      single_cls,
+                                                      hyp=hyp,
+                                                      augment=True,
+                                                      cache=None if opt.cache == 'val' else opt.cache,
+                                                      rect=opt.rect,
+                                                      rank=LOCAL_RANK,
+                                                      workers=workers,
+                                                      image_weights=opt.image_weights,
+                                                      quad=opt.quad,
+                                                      prefix=colorstr('train: '),
+                                                      shuffle=True,
+                                                      seed=opt.seed)
         mloss = torch.zeros(4, device=device)  # mean losses
         if RANK != -1:
             train_loader.sampler.set_epoch(epoch)
@@ -447,6 +474,7 @@ def parse_opt(known=False):
     parser.add_argument('--data', type=str, default=ROOT / 'data/coco128.yaml', help='dataset.yaml path')
     parser.add_argument('--hyp', type=str, default=ROOT / 'data/hyps/hyp.scratch-low.yaml', help='hyperparameters path')
     parser.add_argument('--epochs', type=int, default=100, help='total training epochs')
+    parser.add_argument('--close-mosaic', type=int, default=50, help='close mosaic at last n epochs')
     parser.add_argument('--batch-size', type=int, default=16, help='total batch size for all GPUs, -1 for autobatch')
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=640, help='train, val image size (pixels)')
     parser.add_argument('--rect', action='store_true', help='rectangular training')
@@ -471,7 +499,7 @@ def parse_opt(known=False):
     parser.add_argument('--quad', action='store_true', help='quad dataloader')
     parser.add_argument('--cos-lr', action='store_true', help='cosine LR scheduler')
     parser.add_argument('--label-smoothing', type=float, default=0.0, help='Label smoothing epsilon')
-    parser.add_argument('--patience', type=int, default=50, help='EarlyStopping patience (epochs without improvement)')
+    parser.add_argument('--patience', type=int, default=100, help='EarlyStopping patience (epochs without improvement)')
     parser.add_argument('--freeze', nargs='+', type=int, default=[0], help='Freeze layers: backbone=10, first3=0 1 2')
     parser.add_argument('--save-period', type=int, default=-1, help='Save checkpoint every x epochs (disabled if < 1)')
     parser.add_argument('--seed', type=int, default=0, help='Global training seed')
