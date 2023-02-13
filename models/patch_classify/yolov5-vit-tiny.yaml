@@ -12,10 +12,10 @@ anchors:
 
 # YOLOv5 v6.0 backbone
 backbone:
-  [[-1, 1, swin_small,  [0.2]], # 0-P1/2
-   [-1, 1, SelectLayer, [192, 1]], # 1-P3/8
-   [0,  1, SelectLayer, [384, 2]], # 2-P4/16
-   [0,  1, SelectLayer, [768, 3]],  # 3-P5/32
+  [[-1, 1, vit_tiny,    [0.1]], # 0-P1/2
+   [-1, 1, SelectLayer, [192, 0]], # 1-P3/8
+   [0,  1, SelectLayer, [192, 1]], # 2-P4/16
+   [0,  1, SelectLayer, [192, 2]],  # 3-P5/32
    [-1, 1, SPPF,        [1024, 5]],  # 4-SPP
   ]
 
