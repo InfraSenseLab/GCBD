@@ -4,7 +4,7 @@
 nc: 5  # number of classes
 nc_grid: 3  # number of grid classes
 depth_multiple: 1.0  # model depth multiple
-width_multiple: 1.0  # layer channel multiple
+width_multiple: 0.75  # layer channel multiple
 anchors:
   - [53,65, 206,48, 49,228]  # P3/8
   - [52,621, 496,73, 80,576]  # P4/16
@@ -13,9 +13,9 @@ anchors:
 # YOLOv5 v6.0 backbone
 backbone:
   [[-1, 1, swin_tiny,   [0.1]], # 0-P1/2
-   [-1, 1, SelectLayer, [192, 1]], # 1-P3/8
-   [0,  1, SelectLayer, [384, 2]], # 2-P4/16
-   [0,  1, SelectLayer, [768, 3]],  # 3-P5/32
+   [-1, 1, SelectLayer, [256, 0]], # 1-P3/8
+   [0,  1, SelectLayer, [512, 1]], # 2-P4/16
+   [0,  1, SelectLayer, [1024, 2]],  # 3-P5/32
    [-1, 1, SPPF,        [1024, 5]],  # 4-SPP
   ]
 

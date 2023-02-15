@@ -43,6 +43,7 @@ from patch_classify import val as validate  # for end-of-epoch mAP
 from models.experimental import attempt_load
 from models.yolo import PatchClassifyModel
 from models.swin_transformer import SwinTransformer
+from models.vision_transformer import ViTDeT
 from utils.patch_classify.autoanchor import check_anchors
 from utils.autobatch import check_train_batch_size
 from utils.callbacks import Callbacks
@@ -129,8 +130,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         ckpt = torch.load(weights, map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
         model = PatchClassifyModel(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors')).to(
             device)  # create
-        if isinstance(model.model[0], SwinTransformer) and not resume:
-            LOGGER.info(model.model[0].load_state_dict(ckpt,strict=False))
+        if isinstance(model.model[0], (SwinTransformer, ViTDeT)) and not resume:
+            LOGGER.info(model.model[0].load_state_dict(ckpt, strict=False))
             csd = ckpt
         else:
             exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
@@ -161,7 +162,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         loggers.on_params_update({"batch_size": batch_size})
 
     # Optimizer
-    nbs = 64  # nominal batch size
+    nbs = 192  # nominal batch size
     accumulate = max(round(nbs / batch_size), 1)  # accumulate loss before optimizing
     hyp['weight_decay'] *= batch_size * accumulate / nbs  # scale weight_decay
     if opt.optimizer in ('Adam', 'AdamW'):

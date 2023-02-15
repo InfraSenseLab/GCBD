@@ -464,10 +464,10 @@ class ViTDeT(nn.Module):
         window_size=0,
         window_block_indexes=(),
         residual_block_indexes=(),
+        return_indexes=(2, 5, 8, 11),
         use_checkpoint=False,
         pretrain_img_size=224,
         pretrain_use_cls_token=True,
-        scale_factors=(4.0, 2.0, 1.0, 0.5),
     ):
         """
         Args:
@@ -524,7 +524,7 @@ class ViTDeT(nn.Module):
                 drop_path=dpr[i],
                 norm_layer=norm_layer,
                 act_layer=act_layer,
-                use_rel_pos=use_rel_pos,
+                use_rel_pos=use_rel_pos if i in window_block_indexes else False,
                 rel_pos_zero_init=rel_pos_zero_init,
                 window_size=window_size if i in window_block_indexes else 0,
                 use_residual_block=i in residual_block_indexes,
@@ -532,26 +532,7 @@ class ViTDeT(nn.Module):
             )
             self.blocks.append(block)
         self.use_checkpoint = use_checkpoint
-        self.stages = []
-        for idx, scale in enumerate(scale_factors):
-            if scale == 4.0:
-                layers = [
-                    nn.ConvTranspose2d(embed_dim, embed_dim, kernel_size=2, stride=2),
-                    norm_layer(embed_dim, data_format='channels_first'),
-                    nn.GELU(),
-                    nn.ConvTranspose2d(embed_dim, embed_dim, kernel_size=2, stride=2),
-                ]
-            elif scale == 2.0:
-                layers = [nn.ConvTranspose2d(embed_dim, embed_dim, kernel_size=2, stride=2)]
-            elif scale == 1.0:
-                layers = []
-            elif scale == 0.5:
-                layers = [nn.MaxPool2d(kernel_size=2, stride=2)]
-            else:
-                raise NotImplementedError(f"scale_factor={scale} is not supported yet.")
-            layers = nn.Sequential(*layers)
-            self.stages.append(layers)
-        self.stages = nn.ModuleList(self.stages)
+        self.return_indexes = return_indexes
 
         if self.pos_embed is not None:
             nn.init.trunc_normal_(self.pos_embed, std=0.02)
@@ -573,16 +554,14 @@ class ViTDeT(nn.Module):
             x = x + get_abs_pos(
                 self.pos_embed, self.pretrain_use_cls_token, (x.shape[1], x.shape[2])
             )
-
-        for blk in self.blocks:
+        features = []
+        for index,blk in enumerate(self.blocks):
             if self.use_checkpoint:
                 x = checkpoint.checkpoint(blk, x)
             else:
                 x = blk(x)
-        x = x.permute(0, 3, 1, 2)
-        features = []
-        for op in self.stages:
-            features.append(op(x))
+            if index in self.return_indexes:
+                features.append(x.permute(0, 3, 1, 2))
 
         return tuple(features)
 
@@ -600,8 +579,7 @@ def vit_tiny(dp):
                   norm_layer=partial(LayerNorm, eps=1e-6),
                   window_block_indexes=list(range(12)),
                   residual_block_indexes=[2, 5, 8, 11],
-                  use_rel_pos=True,
-                  scale_factors=(2.0, 1.0, 0.5))
+                  use_rel_pos=True,)
 
 
 def vit_small(dp):
@@ -617,8 +595,7 @@ def vit_small(dp):
                   norm_layer=partial(LayerNorm, eps=1e-6),
                   window_block_indexes=list(range(12)),
                   residual_block_indexes=[2, 5, 8, 11],
-                  use_rel_pos=True,
-                  scale_factors=(2.0, 1.0, 0.5))
+                  use_rel_pos=True,)
 
 
 def vit_base(dp):
@@ -634,5 +611,4 @@ def vit_base(dp):
                   norm_layer=partial(LayerNorm, eps=1e-6),
                   window_block_indexes=list(range(12)),
                   residual_block_indexes=[2, 5, 8, 11],
-                  use_rel_pos=True,
-                  scale_factors=(2.0, 1.0, 0.5))
+                  use_rel_pos=True, )

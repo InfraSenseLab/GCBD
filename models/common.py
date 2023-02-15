@@ -313,6 +313,19 @@ class Concat(nn.Module):
         return torch.cat(x, self.d)
 
 
+class Add(nn.Module):
+    # Concatenate a list of tensors along dimension
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        n = len(x)
+        res = x[0]
+        for i in range(1, n):
+            res = res + x[i]
+        return res
+
+
 class DetectMultiBackend(nn.Module):
     # YOLOv5 MultiBackend class for python inference on various backends
     def __init__(self, weights='yolov5s.pt', device=torch.device('cpu'), dnn=False, data=None, fp16=False, fuse=True):

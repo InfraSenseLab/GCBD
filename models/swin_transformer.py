@@ -477,7 +477,7 @@ class SwinTransformer(nn.Module):
                  norm_layer=nn.LayerNorm,
                  ape=False,
                  patch_norm=True,
-                 out_indices=(0, 1, 2, 3),
+                 out_indices=(1, 2, 3),
                  frozen_stages=-1,
                  use_checkpoint=False):
         super().__init__()
@@ -600,9 +600,8 @@ class SwinTransformer(nn.Module):
 
 
 class SelectLayer(nn.Module):
-    def __init__(self, c2, i):
+    def __init__(self, i):
         super().__init__()
-        self.c2 = c2
         self.index = i
 
     def forward(self, x):
