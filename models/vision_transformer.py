@@ -415,6 +415,8 @@ class Block(nn.Module):
                 norm=norm_layer,
                 act_layer=act_layer,
             )
+        self.gamma_1 = nn.Parameter(torch.ones((dim)), requires_grad=True)
+        self.gamma_2 = nn.Parameter(torch.ones((dim)), requires_grad=True)
 
     def forward(self, x):
         shortcut = x
@@ -429,8 +431,8 @@ class Block(nn.Module):
         if self.window_size > 0:
             x = window_unpartition(x, self.window_size, pad_hw, (H, W))
 
-        x = shortcut + self.drop_path(x)
-        x = x + self.drop_path(self.mlp(self.norm2(x)))
+        x = shortcut + self.drop_path(self.gamma_1 * x)
+        x = x + self.drop_path(self.gamma_2 * self.mlp(self.norm2(x)))
 
         if self.use_residual_block:
             x = self.residual(x.permute(0, 3, 1, 2)).permute(0, 2, 3, 1)
@@ -524,7 +526,7 @@ class ViTDeT(nn.Module):
                 drop_path=dpr[i],
                 norm_layer=norm_layer,
                 act_layer=act_layer,
-                use_rel_pos=use_rel_pos if i in window_block_indexes else False,
+                use_rel_pos=use_rel_pos,
                 rel_pos_zero_init=rel_pos_zero_init,
                 window_size=window_size if i in window_block_indexes else 0,
                 use_residual_block=i in residual_block_indexes,
@@ -536,6 +538,11 @@ class ViTDeT(nn.Module):
 
         if self.pos_embed is not None:
             nn.init.trunc_normal_(self.pos_embed, std=0.02)
+
+        for i_layer in return_indexes:
+            layer = norm_layer(embed_dim)
+            layer_name = f'norm{i_layer}'
+            self.add_module(layer_name, layer)
 
         self.apply(self._init_weights)
 
@@ -555,13 +562,15 @@ class ViTDeT(nn.Module):
                 self.pos_embed, self.pretrain_use_cls_token, (x.shape[1], x.shape[2])
             )
         features = []
-        for index,blk in enumerate(self.blocks):
+        for index, blk in enumerate(self.blocks):
             if self.use_checkpoint:
                 x = checkpoint.checkpoint(blk, x)
             else:
                 x = blk(x)
             if index in self.return_indexes:
-                features.append(x.permute(0, 3, 1, 2))
+                norm_layer = getattr(self, f'norm{index}')
+                x_out = norm_layer(x)
+                features.append(x_out.permute(0, 3, 1, 2).contiguous())
 
         return tuple(features)
 
@@ -577,9 +586,10 @@ def vit_tiny(dp):
                   mlp_ratio=4,
                   qkv_bias=True,
                   norm_layer=partial(LayerNorm, eps=1e-6),
-                  window_block_indexes=list(range(12)),
+                  window_block_indexes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
                   residual_block_indexes=[2, 5, 8, 11],
-                  use_rel_pos=True,)
+                  use_rel_pos=True,
+                  pretrain_use_cls_token=False)
 
 
 def vit_small(dp):
@@ -593,9 +603,27 @@ def vit_small(dp):
                   mlp_ratio=4,
                   qkv_bias=True,
                   norm_layer=partial(LayerNorm, eps=1e-6),
-                  window_block_indexes=list(range(12)),
+                  window_block_indexes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
                   residual_block_indexes=[2, 5, 8, 11],
-                  use_rel_pos=True,)
+                  use_rel_pos=True,
+                  pretrain_use_cls_token=False)
+
+
+def vit_med(dp):
+    return ViTDeT(img_size=640,
+                  patch_size=16,
+                  embed_dim=512,
+                  depth=12,
+                  num_heads=8,
+                  drop_path_rate=dp,
+                  window_size=14,
+                  mlp_ratio=4,
+                  qkv_bias=True,
+                  norm_layer=partial(LayerNorm, eps=1e-6),
+                  window_block_indexes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+                  residual_block_indexes=[2, 5, 8, 11],
+                  use_rel_pos=True,
+                  pretrain_use_cls_token=False)
 
 
 def vit_base(dp):
@@ -609,6 +637,7 @@ def vit_base(dp):
                   mlp_ratio=4,
                   qkv_bias=True,
                   norm_layer=partial(LayerNorm, eps=1e-6),
-                  window_block_indexes=list(range(12)),
+                  window_block_indexes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
                   residual_block_indexes=[2, 5, 8, 11],
-                  use_rel_pos=True, )
+                  use_rel_pos=True,
+                  pretrain_use_cls_token=False)

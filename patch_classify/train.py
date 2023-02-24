@@ -131,6 +131,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         model = PatchClassifyModel(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors')).to(
             device)  # create
         if isinstance(model.model[0], (SwinTransformer, ViTDeT)) and not resume:
+            if 'pos_embed' in ckpt and ckpt['pos_embed'].size(1) % 2 != 0:  # remove pos_embed attach to cls_token(deit)
+                ckpt['pos_embed'] = ckpt['pos_embed'][:, 1:]
             LOGGER.info(model.model[0].load_state_dict(ckpt, strict=False))
             csd = ckpt
         else:
@@ -164,7 +166,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     # Optimizer
     nbs = 192  # nominal batch size
     accumulate = max(round(nbs / batch_size), 1)  # accumulate loss before optimizing
-    hyp['weight_decay'] *= batch_size * accumulate / nbs  # scale weight_decay
     if opt.optimizer in ('Adam', 'AdamW'):
         hyp['lr0'] /= 10
         hyp['warmup_bias_lr'] /= 10
@@ -249,10 +250,10 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     nl = de_parallel(model).model[-1].nl  # number of detection layers (to scale hyps)
     hyp['box'] *= 3 / nl  # scale to layers
     hyp['cls'] *= nc / 80 * 3 / nl  # scale to classes and layers
-    hyp['obj'] *= (imgsz / 640) ** 2 * 3 / nl  # scale to image size and layers
-    hyp['grid'] *= nc_grid / 80 * 3 / nl  # scale to classes and layers
+    hyp['obj'] *= (imgsz / 640) ** 2  # scale to image size and layers
+    hyp['grid'] *= nc_grid / 80  # scale to classes and layers
     hyp['label_smoothing'] = opt.label_smoothing
-    model.nc = nc  # attach number of classes to model````
+    model.nc = nc  # attach number of classes to model
     model.hyp = hyp  # attach hyperparameters to model
     model.class_weights = labels_to_class_weights(dataset.labels, nc).to(device) * nc  # attach class weights
     model.names = names

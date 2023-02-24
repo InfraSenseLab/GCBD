@@ -6,6 +6,7 @@ nc_grid: 3  # number of grid classes
 depth_multiple: 1.0  # model depth multiple
 width_multiple: 0.25  # layer channel multiple
 anchors:
+  - [10,13, 16,30, 33,23]  # P2/4
   - [53,65, 206,48, 49,228]  # P3/8
   - [52,621, 496,73, 80,576]  # P4/16
   - [555,141, 201,543, 405,577]  # P5/32
@@ -13,39 +14,18 @@ anchors:
 # YOLOv5 v6.0 backbone
 backbone:
   [[-1, 1, vit_tiny,    [0.1]],  # 0
-   [0,  1, SelectLayer, [768, 0]], # 1
-   [0,  1, SelectLayer, [768, 1]], # 2
-   [-1, 1, Conv,        [256, 1, 1]], # 3
-   [-1, 1, nn.Upsample, [None, 2, 'nearest']], # 4 P3/8
-   [0,  1, SelectLayer, [768, 2]],  # 5
-   [-1, 1, Conv,        [512, 1, 1]], # 6 P4/16
-   [0,  1, SelectLayer, [768, 3]],  # 7
-   [-1, 1, Conv,        [1024, 3, 2]], # 8
-   [-1, 1, SPPF,        [1024, 5]],  # 9-SPP p5/32
+   [-1, 1, SelectLayer, [768, 3]],  # 1
   ]
 
 # YOLOv5 v6.0 head
 head:
-  [[-1, 1, Conv, [512, 1, 1]],
-   [-1, 1, nn.Upsample, [None, 2, 'nearest']],
-   [[-1, 6], 1, Concat, [1]],  # cat backbone P4
-   [-1, 3, C3, [512, False]],  # 13
-
-   [-1, 1, Conv, [256, 1, 1]],
-   [-1, 1, nn.Upsample, [None, 2, 'nearest']],
-   [[-1, 4], 1, Concat, [1]],  # cat backbone P3
-   [-1, 3, C3, [256, False]],  # 17 (P3/8-small)
-
-   [-1, 1, Conv, [256, 3, 2]],
-   [[-1, 14], 1, Concat, [1]],  # cat head P4
-   [-1, 3, C3, [512, False]],  # 20 (P4/16-medium)
-
-   [-1, 1, Conv, [512, 3, 2]],
-   [[-1, 10], 1, Concat, [1]],  # cat head P5
-   [-1, 3, C3, [1024, False]],  # 23 (P5/32-large)
-
-   [[1,2,5,7], 1, Add, []],
-   [-1, 1, Conv, [1024, 3, 2]],
-   [-1, 1, C3, [1024, False]],
-   [[17, 20, 23, -1], 1, PatchClassify, [nc, anchors, nc_grid]],  # Detect(P3, P4, P5)
+  [[1, 1, ConvTranspose2d, [192, 4]],
+   [-1, 6, C3, [192, True, 1, 0.5, 2]], # 3 P3/8
+   [1, 1, ConvTranspose2d, [384, 2]],
+   [-1, 6, C3, [384, True, 1, 0.5, 2]], # 5 P3/8
+   [1, 6, C3, [768, True, 1, 0.5, 3]], # 6 P4/16
+   [1, 1, nn.MaxPool2d, [2, 2]],
+   [-1, 6, C3, [768, True, 1, 0.5, 4]], # 8 P5/32
+   [-2, 6, C3, [768, True, 1, 0.5, 1]], # 9 grid/32
+   [[3, 5, 6, 8, -1], 1, PatchClassify, [nc, anchors, nc_grid]],  # Detect(P3, P4, P5)
   ]
