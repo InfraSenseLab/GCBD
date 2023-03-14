@@ -602,10 +602,15 @@ class SwinTransformer(nn.Module):
 class SelectLayer(nn.Module):
     def __init__(self, i):
         super().__init__()
+        if isinstance(i, int):
+            i = [i]
         self.index = i
 
     def forward(self, x):
-        return x[self.index]
+        features = []
+        for i in self.index:
+            features.append(x[i])
+        return torch.cat(features, dim=1)
 
 
 def swin_tiny(drop_path_rate=0.1):

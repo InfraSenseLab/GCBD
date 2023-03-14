@@ -72,21 +72,21 @@ def window_partition(x, window_size):
     Partition into non-overlapping windows with padding if needed.
     Args:
         x (tensor): input tokens with [B, H, W, C].
-        window_size (int): window size.
+        window_size (tuple): window size.
     Returns:
         windows: windows after partition with [B * num_windows, window_size, window_size, C].
         (Hp, Wp): padded height and width before partition
     """
     B, H, W, C = x.shape
 
-    pad_h = (window_size - H % window_size) % window_size
-    pad_w = (window_size - W % window_size) % window_size
+    pad_h = (window_size[0] - H % window_size[0]) % window_size[0]
+    pad_w = (window_size[1] - W % window_size[1]) % window_size[1]
     if pad_h > 0 or pad_w > 0:
         x = F.pad(x, (0, 0, 0, pad_w, 0, pad_h))
     Hp, Wp = H + pad_h, W + pad_w
 
-    x = x.view(B, Hp // window_size, window_size, Wp // window_size, window_size, C)
-    windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size, window_size, C)
+    x = x.view(B, Hp // window_size[0], window_size[0], Wp // window_size[1], window_size[1], C)
+    windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size[0], window_size[1], C)
     return windows, (Hp, Wp)
 
 
@@ -95,7 +95,7 @@ def window_unpartition(windows, window_size, pad_hw, hw):
     Window unpartition into original sequences and removing padding.
     Args:
         x (tensor): input tokens with [B * num_windows, window_size, window_size, C].
-        window_size (int): window size.
+        window_size (tuple): window size.
         pad_hw (Tuple): padded height and width (Hp, Wp).
         hw (Tuple): original height and width (H, W) before padding.
     Returns:
@@ -103,8 +103,8 @@ def window_unpartition(windows, window_size, pad_hw, hw):
     """
     Hp, Wp = pad_hw
     H, W = hw
-    B = windows.shape[0] // (Hp * Wp // window_size // window_size)
-    x = windows.view(B, Hp // window_size, Wp // window_size, window_size, window_size, -1)
+    B = windows.shape[0] // (Hp * Wp // window_size[0] // window_size[1])
+    x = windows.view(B, Hp // window_size[0], Wp // window_size[1], window_size[0], window_size[1], -1)
     x = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(B, Hp, Wp, -1)
 
     if Hp > H or Wp > W:
@@ -382,10 +382,10 @@ class Block(nn.Module):
             act_layer (nn.Module): Activation layer.
             use_rel_pos (bool): If True, add relative positional embeddings to the attention map.
             rel_pos_zero_init (bool): If True, zero initialize relative positional parameters.
-            window_size (int): Window size for window attention blocks. If it equals 0, then not
+            window_size (tuple): Window size for window attention blocks. If it equals 0, then not
                 use window attention.
             use_residual_block (bool): If True, use a residual block after the MLP block.
-            input_size (int or None): Input resolution for calculating the relative positional
+            input_size (tuple): Input resolution for calculating the relative positional
                 parameter size.
         """
         super().__init__()
@@ -396,7 +396,7 @@ class Block(nn.Module):
             qkv_bias=qkv_bias,
             use_rel_pos=use_rel_pos,
             rel_pos_zero_init=rel_pos_zero_init,
-            input_size=input_size if window_size == 0 else (window_size, window_size),
+            input_size=input_size if window_size[0] == 0 else window_size,
         )
 
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
@@ -422,13 +422,13 @@ class Block(nn.Module):
         shortcut = x
         x = self.norm1(x)
         # Window partition
-        if self.window_size > 0:
+        if self.window_size[0] > 0:
             H, W = x.shape[1], x.shape[2]
             x, pad_hw = window_partition(x, self.window_size)
 
         x = self.attn(x)
         # Reverse window partition
-        if self.window_size > 0:
+        if self.window_size[0] > 0:
             x = window_unpartition(x, self.window_size, pad_hw, (H, W))
 
         x = shortcut + self.drop_path(self.gamma_1 * x)
@@ -528,7 +528,7 @@ class ViTDeT(nn.Module):
                 act_layer=act_layer,
                 use_rel_pos=use_rel_pos,
                 rel_pos_zero_init=rel_pos_zero_init,
-                window_size=window_size if i in window_block_indexes else 0,
+                window_size=(window_size,window_size) if i in window_block_indexes else (0,0),
                 use_residual_block=i in residual_block_indexes,
                 input_size=(img_size // patch_size, img_size // patch_size),
             )
