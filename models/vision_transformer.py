@@ -528,7 +528,8 @@ class ViTDeT(nn.Module):
                 act_layer=act_layer,
                 use_rel_pos=use_rel_pos,
                 rel_pos_zero_init=rel_pos_zero_init,
-                window_size=(window_size,window_size) if i in window_block_indexes else (0,0),
+                window_size=(window_size, window_size) if i in window_block_indexes else (0, 0),
+                # window_size=(img_size // patch_size, 1) if i % 2 == 0 else (1, img_size // patch_size),
                 use_residual_block=i in residual_block_indexes,
                 input_size=(img_size // patch_size, img_size // patch_size),
             )
@@ -539,10 +540,7 @@ class ViTDeT(nn.Module):
         if self.pos_embed is not None:
             nn.init.trunc_normal_(self.pos_embed, std=0.02)
 
-        for i_layer in return_indexes:
-            layer = norm_layer(embed_dim)
-            layer_name = f'norm{i_layer}'
-            self.add_module(layer_name, layer)
+        self.norm = norm_layer(embed_dim)
 
         self.apply(self._init_weights)
 
@@ -567,10 +565,9 @@ class ViTDeT(nn.Module):
                 x = checkpoint.checkpoint(blk, x)
             else:
                 x = blk(x)
-            if index in self.return_indexes:
-                norm_layer = getattr(self, f'norm{index}')
-                x_out = norm_layer(x)
-                features.append(x_out.permute(0, 3, 1, 2).contiguous())
+
+        x_out = self.norm(x)
+        features.append(x_out.permute(0, 3, 1, 2).contiguous())
 
         return tuple(features)
 
@@ -587,7 +584,7 @@ def vit_tiny(dp):
                   qkv_bias=True,
                   norm_layer=partial(LayerNorm, eps=1e-6),
                   window_block_indexes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-                  residual_block_indexes=[2, 5, 8, 11],
+                  residual_block_indexes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
                   use_rel_pos=True,
                   pretrain_use_cls_token=False)
 
@@ -604,7 +601,7 @@ def vit_small(dp):
                   qkv_bias=True,
                   norm_layer=partial(LayerNorm, eps=1e-6),
                   window_block_indexes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-                  residual_block_indexes=[2, 5, 8, 11],
+                  residual_block_indexes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
                   use_rel_pos=True,
                   pretrain_use_cls_token=False)
 
@@ -621,7 +618,7 @@ def vit_med(dp):
                   qkv_bias=True,
                   norm_layer=partial(LayerNorm, eps=1e-6),
                   window_block_indexes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-                  residual_block_indexes=[2, 5, 8, 11],
+                  residual_block_indexes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
                   use_rel_pos=True,
                   pretrain_use_cls_token=False)
 
@@ -638,6 +635,6 @@ def vit_base(dp):
                   qkv_bias=True,
                   norm_layer=partial(LayerNorm, eps=1e-6),
                   window_block_indexes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-                  residual_block_indexes=[2, 5, 8, 11],
+                  residual_block_indexes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
                   use_rel_pos=True,
                   pretrain_use_cls_token=False)

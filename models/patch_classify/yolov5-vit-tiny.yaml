@@ -13,7 +13,7 @@ anchors:
 # YOLOv5 v6.0 backbone
 backbone:
   [[-1, 1, vit_tiny,    [0.1]],  # 0
-   [-1, 1, SelectLayer, [768, 3]],  # 1
+   [-1, 1, SelectLayer, [768, 0]],  # 1
   ]
 
 # YOLOv5 v6.0 head

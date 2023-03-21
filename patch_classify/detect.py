@@ -323,7 +323,7 @@ def read_paths(path):
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'runs_pc/train/exp15/weights/best.pt',
+    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'runs_pc/train/exp42/weights/best.pt',
                         help='model path or triton URL')
     parser.add_argument('--data', type=str, default='/home/qiyu/datasets/pavement_paper/pavement_box_grid/detect.txt',
                         help='(optional) dataset.yaml path')
@@ -331,19 +331,19 @@ def parse_opt():
     parser.add_argument('--workers', type=int, default=0, help='number of workers')
     parser.add_argument('--bs', type=int, default=100, help='batch size')
     parser.add_argument('--pad', type=int, default=1, help='padding=pad*stride')
-    parser.add_argument('--conf-thres-box', type=float, default=0.168, help='confidence threshold')
-    parser.add_argument('--conf-thres-grid', type=float, default=0.51, help='confidence threshold')
+    parser.add_argument('--conf-thres-box', type=float, default=0.174, help='confidence threshold')
+    parser.add_argument('--conf-thres-grid', type=float, default=0.576, help='confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.5, help='NMS IoU threshold')
     parser.add_argument('--ras-thres', type=float, default=0.5, help='RAS threshold')
     parser.add_argument('--max-det', type=int, default=1000, help='maximum detections per image')
     parser.add_argument('--device', default='cuda:1', help='cuda:0, cuda:1 or cpu')
     parser.add_argument('--classes', nargs='+', type=int, default=[0, 1, 2, 3],
-                        help='filter by class: --classes 0, or --classes 0 2 3')
+                        help='filter by class: --classes 0, or --classes 0 1 2 3')
     parser.add_argument('--view-img', action='store_true', help='show results')
     parser.add_argument('--no-save-txt', action='store_true', help='save results to *.txt')
     parser.add_argument('--no-save-img', action='store_true', help='save results to *.jpg')
     parser.add_argument('--no-match', action='store_true', help='no match grid and box')
-    parser.add_argument('--no-crack-agnostic', action='store_true', help='class-agnostic NMS&RAS for crack')
+    parser.add_argument('--no-crack-agnostic', action='store_true', help='no class-agnostic NMS&RAS for crack')
     parser.add_argument('--project', default=ROOT /'runs_pc/detect', help='save results to project/name')
     parser.add_argument('--name', default='exp', help='save results to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')

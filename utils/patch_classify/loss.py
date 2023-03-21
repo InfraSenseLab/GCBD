@@ -92,7 +92,7 @@ class ComputeLoss:
     sort_obj_iou = False
 
     # Compute losses
-    def __init__(self, model, autobalance=False, grid_delta=0.25):
+    def __init__(self, model, autobalance=False):
         device = next(model.parameters()).device  # get model device
         h = model.hyp  # hyperparameters
 
@@ -111,7 +111,7 @@ class ComputeLoss:
 
         m = de_parallel(model).model[-1]  # Detect() module
         self.balance = {3: [4.0, 1.0, 0.4], 4: [16.0, 4.0, 1.0, 0.4]}.get(m.nl, [4.0, 1.0, 0.25, 0.06, 0.02])  # P3-P7
-        self.ssi = list(m.stride).index(16) if autobalance else 0  # stride 16 index
+        self.ssi = list(m.stride).index(16) if autobalance else 1  # stride 16 index
         self.BCEcls, self.BCEobj, self.gr, self.hyp, self.autobalance = BCEcls, BCEobj, 1.0, h, autobalance
         self.BCEgrid = BCEgrid
         self.na = m.na  # number of anchors
@@ -119,7 +119,7 @@ class ComputeLoss:
         self.nl = m.nl  # number of layers
         self.anchors = m.anchors
         self.device = device
-        self.grid_delta = grid_delta
+        self.grid_delta = h['grid_delta']
 
     def __call__(self, p, targets):  # predictions, targets
         p, p_grid, targets, targets_grid = p[0], p[1], targets[targets[:, 1] >= 0], targets[targets[:, 1] < 0]
@@ -189,7 +189,6 @@ class ComputeLoss:
         b = (box[:, 0]).long()
         c = (-box[:, 1] - 1).long()
         for dh, dw in [(-1, -1), (-1, 1), (1, 1), (1, -1), (0, 0), (0, -1), (0, 1), (-1, 0), (1, 0)]:
-        # for dh, dw in [(-1, -1), (-1, 1), (1, 1), (1, -1)]:
             y = ((box[:, 3] + dh * self.grid_delta * box[:, 5]) * H).long()
             x = ((box[:, 2] + dw * self.grid_delta * box[:, 4]) * W).long()
             grid[b, c, y, x] = self.cp
