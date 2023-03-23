@@ -305,7 +305,7 @@ def read_img(path):
 
 
 def read_paths(path):
-    if isinstance(path, str) and Path(path).suffix == ".txt":  # *.txt file with img/vid/dir on each line
+    if isinstance(path, (str, Path)) and Path(path).suffix == ".txt":  # *.txt file with img/vid/dir on each line
         path = Path(path).read_text().rsplit()
     files = []
     for p in sorted(path) if isinstance(path, (list, tuple)) else [path]:
@@ -325,7 +325,7 @@ def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'runs_pc/train/exp42/weights/best.pt',
                         help='model path or triton URL')
-    parser.add_argument('--data', type=str, default='/home/qiyu/datasets/pavement_paper/pavement_box_grid/detect.txt',
+    parser.add_argument('--data', type=str, default=ROOT / 'data/detect.txt',
                         help='(optional) dataset.yaml path')
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=640, help='inference image height')
     parser.add_argument('--workers', type=int, default=0, help='number of workers')

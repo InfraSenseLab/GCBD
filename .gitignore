@@ -255,3 +255,5 @@ crashlytics.properties
 crashlytics-build.properties
 fabric.properties
 /tmp.py
+/patch_classify/label_preview.py
+/runs_pc/
