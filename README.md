@@ -8,15 +8,18 @@
 
 Here, we provide a PyTorch implementation of our series of work on automatic crack detection. The code is based on [YOLOv5](https://github.com/ultralytics/yolov5) and the main contributions are as follows:
 
-- **Contribution 1**: [A Grid-based Classification and Box-based Detection Fusion Model for Asphalt Pavement Crack](https://onlinelibrary.wiley.com/doi/abs/10.1111/mice.12962).
+- **Contribution 1**: We propose  [A Grid-based Classification and Box-based Detection Fusion Model for Asphalt Pavement Crack](https://onlinelibrary.wiley.com/doi/abs/10.1111/mice.12962) to train the two task jointly.
 <img src="data/images/GCBD.png" alt="img.png" style="zoom: 67%;" div align=center/>
+- **Contribution 2**: To address the following situation, we suggest the ARS post-processing method to eliminate redundant detection bounding boxes.
 
-- **Contribution 2**: Advanced label assignment for grid-classification task.
+<img src="data/images/ARS.png" alt="label_assignment.png" style="zoom: 50%;" />
+
+- **Contribution 3**: We develop an advanced label assignment method for grid-classification tasks, which allows us to use data augmentation freely
+
 <img src="data/images/label_assignment.png" alt="label_assignment.png" style="zoom: 50%;" />
 
-- **Contribution 3**: We employ Vision Transformer as the backbone of our model.
-
-- **Contribution 4**: Self-supervised learning(e.g. [SAIM](https://github.com/qiy20/SAIM)) is applied to improve the performance of our model. 
+- **Contribution 4**: We employ Vision Transformer as the backbone of our model.
+- **Contribution 5**: Self-supervised learning(e.g. [SAIM](https://github.com/qiy20/SAIM)) is applied to improve the performance of our model. 
 
 # Main Results
 ## Train on Crack-20K
