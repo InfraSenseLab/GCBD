@@ -200,6 +200,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         LOGGER.info('Using SyncBatchNorm()')
 
     # Trainloader
+    hyp['gray'] = opt.gray
     train_loader, dataset = create_dataloader(train_path,
                                               imgsz,
                                               batch_size // WORLD_SIZE,
@@ -286,27 +287,10 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             dataset.indices = random.choices(range(dataset.n), weights=iw, k=dataset.n)  # rand weighted idx
 
         if epochs - epoch == opt.close_mosaic:
-            del train_loader, dataset
-            hyp['mosaic'] = 0.0
-            hyp['mixup'] = 0.0
-            hyp['scale'] = 0.0
-            hyp['translate'] = 0.0
-            train_loader, dataset = create_dataloader(train_path,
-                                                      imgsz,
-                                                      batch_size // WORLD_SIZE,
-                                                      gs,
-                                                      single_cls,
-                                                      hyp=hyp,
-                                                      augment=True,
-                                                      cache=None if opt.cache == 'val' else opt.cache,
-                                                      rect=opt.rect,
-                                                      rank=LOCAL_RANK,
-                                                      workers=workers,
-                                                      image_weights=opt.image_weights,
-                                                      quad=opt.quad,
-                                                      prefix=colorstr('train: '),
-                                                      shuffle=True,
-                                                      seed=opt.seed)
+            train_loader.dataset.hyp['mosaic'] = 0.0
+            train_loader.dataset.hyp['mixup'] = 0.0
+            train_loader.dataset.hyp['scale'] = 0.0
+            train_loader.dataset.hyp['translate'] = 0.0
         mloss = torch.zeros(4, device=device)  # mean losses
         if RANK != -1:
             train_loader.sampler.set_epoch(epoch)
@@ -488,6 +472,7 @@ def parse_opt(known=False):
     parser.add_argument('--evolve', type=int, nargs='?', const=300, help='evolve hyperparameters for x generations')
     parser.add_argument('--bucket', type=str, default='', help='gsutil bucket')
     parser.add_argument('--cache', type=str, nargs='?', const='ram', help='image --cache ram/disk')
+    parser.add_argument('--gray', action='store_true', help='train grayscale images')
     parser.add_argument('--image-weights', action='store_true', help='use weighted image selection for training')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--multi-scale', action='store_true', help='vary img-size +/- 50%%')

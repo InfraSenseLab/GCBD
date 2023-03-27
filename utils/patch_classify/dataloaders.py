@@ -17,6 +17,7 @@ from multiprocessing.pool import Pool, ThreadPool
 from pathlib import Path
 from threading import Thread
 from urllib.parse import urlparse
+from copy import deepcopy
 
 import numpy as np
 import psutil
@@ -140,7 +141,8 @@ def create_dataloader(path,
     nd = torch.cuda.device_count()  # number of CUDA devices
     nw = min([os.cpu_count() // max(nd, 1), batch_size if batch_size > 1 else 0, workers])  # number of workers
     sampler = None if rank == -1 else distributed.DistributedSampler(dataset, shuffle=shuffle)
-    loader = DataLoader if image_weights else InfiniteDataLoader  # only DataLoader allows for attribute updates
+    # loader = DataLoader if image_weights else InfiniteDataLoader  # only DataLoader allows for attribute updates
+    loader = DataLoader
     generator = torch.Generator()
     generator.manual_seed(6148914691236517205 + seed + RANK)
     return loader(dataset,
@@ -461,6 +463,7 @@ class LoadImagesAndLabels(Dataset):
         self.stride = stride
         self.path = path
         self.albumentations = Albumentations(size=img_size) if augment else None
+        self.cache_images = cache_images
 
         try:
             f = []  # image files
@@ -730,7 +733,10 @@ class LoadImagesAndLabels(Dataset):
         if im is None:  # not cached in RAM
             if fn.exists():  # load npy
                 im = np.load(fn)
-            else:  # read image
+            elif self.hyp['gray'] and self.cache_images:  # read image
+                im = cv2.imread(f, 0)  # Gray
+                assert im is not None, f'Image Not Found {f}'
+            else:
                 im = cv2.imread(f)  # BGR
                 assert im is not None, f'Image Not Found {f}'
             h0, w0 = im.shape[:2]  # orig hw
@@ -739,7 +745,11 @@ class LoadImagesAndLabels(Dataset):
                 interp = cv2.INTER_LINEAR if (self.augment or r > 1) else cv2.INTER_AREA
                 im = cv2.resize(im, (math.ceil(w0 * r), math.ceil(h0 * r)), interpolation=interp)
             return im, (h0, w0), im.shape[:2]  # im, hw_original, hw_resized
-        return self.ims[i], self.im_hw0[i], self.im_hw[i]  # im, hw_original, hw_resized
+        elif self.hyp['gray']:
+            im = im[:, :, None].repeat(3, 2)
+            return im, self.im_hw0[i], self.im_hw[i]
+        else:
+            return self.ims[i], self.im_hw0[i], self.im_hw[i]
 
     def cache_images_to_disk(self, i):
         # Saves an image as an *.npy file for faster loading
