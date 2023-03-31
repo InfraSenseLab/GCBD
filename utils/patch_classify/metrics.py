@@ -87,6 +87,11 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='.', names
         plot_mc_curve(px, r, Path(save_dir) / f'{prefix}R_curve.png', names, ylabel='Recall')
 
     i = smooth(f1.mean(0), 0.1).argmax()  # max F1 index
+    ar = r.mean(0)
+    if ar[i] < 0.7:  # if high recall, use F1, else find i to guarantee recall greater than 0.7
+        index = (ar > 0.7).nonzero()[0]
+        if len(index):
+            i = index.max()
     p, r, f1 = p[:, i], r[:, i], f1[:, i]
     tp = (r * nt).round()  # true positives
     fp = (tp / (p + eps) - tp).round()  # false positives

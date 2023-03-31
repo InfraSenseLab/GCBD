@@ -733,7 +733,7 @@ class LoadImagesAndLabels(Dataset):
         if im is None:  # not cached in RAM
             if fn.exists():  # load npy
                 im = np.load(fn)
-            elif self.hyp['gray'] and self.cache_images:  # read image
+            elif self.cache_images and self.hyp['gray']:  # read image
                 im = cv2.imread(f, 0)  # Gray
                 assert im is not None, f'Image Not Found {f}'
             else:
