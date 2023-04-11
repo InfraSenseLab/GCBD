@@ -386,7 +386,7 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--cfg', type=str, default='patch_classify/yolov5-swin-base.yaml', help='model.yaml')
+    parser.add_argument('--cfg', type=str, default='patch_classify/yolov5s-pc-panet.yaml', help='model.yaml')
     parser.add_argument('--batch-size', type=int, default=1, help='total batch size for all GPUs')
     parser.add_argument('--device', default='2', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--profile', action='store_false', help='profile model speed')
@@ -398,7 +398,7 @@ if __name__ == '__main__':
     device = select_device(opt.device)
 
     # Create model
-    im = torch.rand(opt.batch_size, 3, 702, 702).to(device).half()
+    im = torch.rand(opt.batch_size, 3, 640, 640).to(device).half()
     model = PatchClassifyModel(opt.cfg).to(device).half()
     box, grid = model(im)
     for i in box:

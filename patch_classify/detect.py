@@ -249,7 +249,7 @@ class CrackDetector:
             img0 = img.copy()
             for *xyxy, conf, cls in dp:
                 c = int(cls)
-                label = f'{conf:.2f}' if stage == 'grid' else f'{self.names[c]} {conf:.2f}'
+                label = '' if stage == 'grid' else f'{self.names[c]} {conf:.2f}'
                 if save_txt:  # Write to file
                     line = (self.names[c], *xyxy, conf)
                     with open(txt_path, 'a') as f:
@@ -323,16 +323,16 @@ def read_paths(path):
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'runs_pc/train/exp42/weights/best.pt',
+    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'runs_pc/train/exp88/weights/best.pt',
                         help='model path or triton URL')
     parser.add_argument('--data', type=str, default=ROOT / 'data/detect.txt',
                         help='(optional) dataset.yaml path')
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=640, help='inference image height')
     parser.add_argument('--workers', type=int, default=0, help='number of workers')
-    parser.add_argument('--bs', type=int, default=100, help='batch size')
+    parser.add_argument('--bs', type=int, default=10, help='batch size')
     parser.add_argument('--pad', type=int, default=1, help='padding=pad*stride')
-    parser.add_argument('--conf-thres-box', type=float, default=0.174, help='confidence threshold')
-    parser.add_argument('--conf-thres-grid', type=float, default=0.576, help='confidence threshold')
+    parser.add_argument('--conf-thres-box', type=float, default=0.223, help='confidence threshold')
+    parser.add_argument('--conf-thres-grid', type=float, default=0.597, help='confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.5, help='NMS IoU threshold')
     parser.add_argument('--ras-thres', type=float, default=0.5, help='RAS threshold')
     parser.add_argument('--max-det', type=int, default=1000, help='maximum detections per image')
