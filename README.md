@@ -1,12 +1,10 @@
 # Classification and Detection Fusion Model For Pavement Inspection
 
-> You can switch the GitHub interface language from the **Language** menu in the top-right corner of the repository homepage, or jump between README translations using the links below.
+[English](README.md)｜[简体中文](README.zh-CN.md)
 
 <div align="center">
   <img src="data/images/demo.gif" alt="demo.gif"/>
 </div>
-
-[English](README.md)｜[简体中文](README.zh-CN.md)
 
 ## Introduction
 
