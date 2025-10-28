@@ -1,12 +1,10 @@
 # 路面巡检分类与检测融合模型
 
-> 你可以在 GitHub 仓库首页右上角的 **Language** 菜单中切换界面语言，也可以使用下方的链接在不同版本的 README 之间切换。
+[English](README.md)｜[简体中文](README.zh-CN.md)
 
 <div align="center">
   <img src="data/images/demo.gif" alt="demo.gif"/>
 </div>
-
-[English](README.md)｜[简体中文](README.zh-CN.md)
 
 ## 引言
 
