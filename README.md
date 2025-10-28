@@ -1,8 +1,12 @@
 # Classification and Detection Fusion Model For Pavement Inspection
 
+> You can switch the GitHub interface language from the **Language** menu in the top-right corner of the repository homepage, or jump between README translations using the links below.
+
 <div align="center">
   <img src="data/images/demo.gif" alt="demo.gif"/>
 </div>
+
+[English](README.md)｜[简体中文](README.zh-CN.md)
 
 ## Introduction
 
@@ -115,4 +119,19 @@ python patch_classify/detect.py
 ```
 ### Pretrain on Unlabeled Data
 Please refer to [SAIM](https://github.com/qiy20/SAIM).
+
+## Citation
+
+```bibtex
+@article{li2023grid,
+  title={A grid-based classification and box-based detection fusion model for asphalt pavement crack},
+  author={Li, Bao-Luo and Qi, Yu and Fan, Jian-Sheng and Liu, Yu-Fei and Liu, Cheng},
+  journal={Computer-Aided Civil and Infrastructure Engineering},
+  volume={38},
+  number={16},
+  pages={2279--2299},
+  year={2023},
+  publisher={Wiley Online Library}
+}
+```
 
